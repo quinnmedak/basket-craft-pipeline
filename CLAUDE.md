@@ -22,6 +22,19 @@ Monthly sales dashboard: gross revenue, order count, avg order value by product 
 
 Full reload every run. Idempotent: TRUNCATE + INSERT on each run.
 
+## Setup (first time)
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+cp .env.example .env          # fill in MySQL credentials; Postgres defaults work as-is
+docker compose up -d
+
+# Initialize DB schemas before first pipeline run
+docker exec -i basket-craft-pipeline-postgres-1 psql -U pipeline -d basket_craft \
+  < pipeline/sql/create_tables.sql
+```
+
 ## Common Commands
 
 ```bash
@@ -31,8 +44,11 @@ docker compose up -d
 # Run pipeline
 .venv/bin/python run_pipeline.py
 
-# Run tests (unit + integration, excludes smoke)
+# Run all tests (excludes smoke)
 .venv/bin/pytest tests/ -v -k "not smoke"
+
+# Run a single test
+.venv/bin/pytest tests/test_pipeline.py::test_transform_output -v
 
 # Run smoke test (hits real MySQL — slow)
 .venv/bin/pytest tests/test_pipeline.py::test_smoke_full_pipeline -v
@@ -42,4 +58,4 @@ docker compose up -d
 
 Credentials in `.env` (gitignored). Copy `.env.example` to `.env` and fill in values.
 MySQL vars: MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE.
-Postgres vars: PG_HOST, PG_PORT, PG_USER, PG_PASSWORD, PG_DATABASE.
+Postgres vars: PG_HOST, PG_PORT, PG_USER, PG_PASSWORD, PG_DATABASE (defaults match docker-compose).
