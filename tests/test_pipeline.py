@@ -39,7 +39,11 @@ def test_transform_output(pg_conn, seeded_raw):
 
     cur = pg_conn.cursor()
     try:
-        cur.execute("SELECT month, product_name, gross_revenue, order_count, avg_order_value FROM analytics.monthly_sales_by_product ORDER BY month, product_name;")
+        cur.execute("""
+            SELECT month, product_name, gross_revenue, order_count, avg_order_value, etl_loaded_at
+            FROM analytics.monthly_sales_by_product
+            ORDER BY month, product_name;
+        """)
         rows = cur.fetchall()
     finally:
         cur.close()
@@ -49,13 +53,15 @@ def test_transform_output(pg_conn, seeded_raw):
     jan = rows[0]
     assert str(jan[0]) == "2024-01-01"
     assert jan[1] == "The Original Gift Basket"
-    assert float(jan[2]) == 100.00
+    assert float(jan[2]) == pytest.approx(100.00)
     assert jan[3] == 2
-    assert float(jan[4]) == 50.00
+    assert float(jan[4]) == pytest.approx(50.00)
+    assert jan[5] is not None
 
     feb = rows[1]
     assert str(feb[0]) == "2024-02-01"
     assert feb[1] == "The Birthday Gift Basket"
-    assert float(feb[2]) == 40.00
+    assert float(feb[2]) == pytest.approx(40.00)
     assert feb[3] == 1
-    assert float(feb[4]) == 40.00
+    assert float(feb[4]) == pytest.approx(40.00)
+    assert feb[5] is not None

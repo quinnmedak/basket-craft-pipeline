@@ -1,5 +1,8 @@
+import logging
 import os
 from pipeline.config import get_pg_conn
+
+logger = logging.getLogger(__name__)
 
 def run_transform(pg_conn=None):
     close_conn = False
@@ -14,6 +17,7 @@ def run_transform(pg_conn=None):
         try:
             cur.execute(sql)
             pg_conn.commit()
+            logger.info("Transform complete.")
         except Exception:
             pg_conn.rollback()
             raise
