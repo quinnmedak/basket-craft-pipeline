@@ -50,6 +50,9 @@ basket-craft-pipeline/
     └── sql/
         ├── create_tables.sql    # CREATE SCHEMA + raw & analytics table definitions
         └── monthly_summary.sql  # Aggregation query → analytics.monthly_sales_by_product
+└── tests/
+    ├── conftest.py              # Postgres fixtures: test connection, schema setup, seeded data, teardown
+    └── test_pipeline.py         # Unit tests (column check, transform correctness) + smoke test (full run)
 ```
 
 ---
@@ -57,9 +60,10 @@ basket-craft-pipeline/
 ## Source Schema (MySQL — basket_craft)
 
 Relevant tables:
-- **`orders`** — `order_id`, `created_at`, `user_id`, `primary_product_id`, `items_purchased`, `price_usd`, `cogs_usd`
-- **`order_items`** — `order_item_id`, `created_at`, `order_id`, `product_id`, `is_primary_item`, `price_usd`, `cogs_usd`
-- **`products`** — `product_id`, `created_at`, `product_name`, `description`
+
+- `**orders**` — `order_id`, `created_at`, `user_id`, `primary_product_id`, `items_purchased`, `price_usd`, `cogs_usd`
+- `**order_items**` — `order_item_id`, `created_at`, `order_id`, `product_id`, `is_primary_item`, `price_usd`, `cogs_usd`
+- `**products**` — `product_id`, `created_at`, `product_name`, `description`
 
 4 products: The Original, Valentine's, Birthday, and Holiday Gift Basket. No category taxonomy — product = category.
 
@@ -69,24 +73,26 @@ Relevant tables:
 
 ### Raw schema (mirrors source)
 
-**`raw.orders`** — `order_id`, `created_at`, `user_id`, `primary_product_id`, `items_purchased`, `price_usd`, `cogs_usd`
+`**raw.orders**` — `order_id`, `created_at`, `user_id`, `primary_product_id`, `items_purchased`, `price_usd`, `cogs_usd`
 
-**`raw.order_items`** — `order_item_id`, `created_at`, `order_id`, `product_id`, `is_primary_item`, `price_usd`, `cogs_usd`
+`**raw.order_items**` — `order_item_id`, `created_at`, `order_id`, `product_id`, `is_primary_item`, `price_usd`, `cogs_usd`
 
-**`raw.products`** — `product_id`, `created_at`, `product_name`, `description`
+`**raw.products**` — `product_id`, `created_at`, `product_name`, `description`
 
 ### Analytics schema
 
-**`analytics.monthly_sales_by_product`** — built by joining `raw.order_items` + `raw.products` (`raw.orders` is loaded for completeness but not used in this transform)
+`**analytics.monthly_sales_by_product**` — built by joining `raw.order_items` + `raw.products` (`raw.orders` is loaded for completeness but not used in this transform)
 
-| column | type | description |
-|---|---|---|
-| `month` | DATE | First day of month (e.g. 2024-01-01) |
-| `product_name` | VARCHAR(50) | e.g. "The Original Gift Basket" |
-| `gross_revenue` | NUMERIC(12,2) | SUM of `order_items.price_usd` |
-| `order_count` | INT | COUNT DISTINCT `order_id` |
-| `avg_order_value` | NUMERIC(10,2) | `gross_revenue / order_count` |
-| `etl_loaded_at` | TIMESTAMP | When the pipeline last ran |
+
+| column            | type          | description                          |
+| ----------------- | ------------- | ------------------------------------ |
+| `month`           | DATE          | First day of month (e.g. 2024-01-01) |
+| `product_name`    | VARCHAR(50)   | e.g. "The Original Gift Basket"      |
+| `gross_revenue`   | NUMERIC(12,2) | SUM of `order_items.price_usd`       |
+| `order_count`     | INT           | COUNT DISTINCT `order_id`            |
+| `avg_order_value` | NUMERIC(10,2) | `gross_revenue / order_count`        |
+| `etl_loaded_at`   | TIMESTAMP     | When the pipeline last ran           |
+
 
 Primary key: `(month, product_name)`
 
@@ -103,13 +109,16 @@ Primary key: `(month, product_name)`
 - `try/except` around MySQL and Postgres connections — print clear message and exit on failure
 - `try/except` around extract and transform steps — stop on error, do not load partial data
 - Column check at start of `extract.py` — compare expected columns against MySQL's actual columns; exit with error on mismatch (guards against schema drift)
+- 
 - No retries — fix and re-run manually
 
 ---
 
 ## Validation
 
-`run_pipeline.py` prints the final row count from `analytics.monthly_sales_by_product` after each run as a sanity check. No automated test suite.
+`run_pipeline.py` prints the final row count from `analytics.monthly_sales_by_product` after each run as a sanity check.
+
+`tests/test_pipeline.py` covers unit tests (column drift check, transform correctness against seeded data) and a smoke test (full pipeline run against real DBs, asserting non-empty results, no NULLs, and AOV = revenue / order_count).
 
 ---
 
