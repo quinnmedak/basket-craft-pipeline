@@ -65,3 +65,34 @@ def test_transform_output(pg_conn, seeded_raw):
     assert feb[3] == 1
     assert float(feb[4]) == pytest.approx(40.00)
     assert feb[5] is not None
+
+def test_smoke_full_pipeline(pg_conn):
+    """Runs full pipeline against real MySQL and Postgres. Slow — run manually."""
+    from pipeline.extract import run_extract
+    from pipeline.transform import run_transform
+
+    run_extract()
+    run_transform(pg_conn)
+
+    cur = pg_conn.cursor()
+    try:
+        cur.execute("""
+            SELECT month, product_name, gross_revenue, order_count, avg_order_value
+            FROM analytics.monthly_sales_by_product;
+        """)
+        rows = cur.fetchall()
+    finally:
+        cur.close()
+
+    assert len(rows) > 0, "analytics table is empty"
+
+    for row in rows:
+        month, product_name, gross_revenue, order_count, avg_order_value = row
+        assert month is not None
+        assert product_name is not None
+        assert gross_revenue is not None
+        assert order_count > 0
+        assert avg_order_value is not None
+        expected_aov = round(float(gross_revenue) / float(order_count), 2)
+        assert abs(float(avg_order_value) - expected_aov) < 0.01, \
+            f"AOV mismatch for {product_name} {month}: got {avg_order_value}, expected {expected_aov}"
