@@ -14,6 +14,12 @@ def create_tables(pg_conn):
     with open(sql_path) as f:
         sql = f.read()
     cur = pg_conn.cursor()
-    cur.execute(sql)
-    pg_conn.commit()
-    cur.close()
+    try:
+        cur.execute(sql)
+        pg_conn.commit()
+    except Exception as e:
+        pg_conn.rollback()
+        pytest.fail(f"Failed to create tables: {e}")
+    finally:
+        cur.close()
+    yield
