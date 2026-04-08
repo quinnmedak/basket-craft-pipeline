@@ -12,12 +12,12 @@ def check_columns(table_name, actual_columns, expected_columns):
         raise ValueError(f"Schema drift in {table_name}: missing columns {missing}")
 
 def extract_table(mysql_cur, table_name):
-    mysql_cur.execute(f"SELECT * FROM {table_name} LIMIT 1;")
-    mysql_cur.fetchall()
+    mysql_cur.execute(f"SELECT * FROM {table_name};")
     actual = [col[0] for col in mysql_cur.description]
     check_columns(table_name, actual, EXPECTED_COLUMNS[table_name])
-
-    mysql_cur.execute(f"SELECT {', '.join(EXPECTED_COLUMNS[table_name])} FROM {table_name};")
+    mysql_cur.fetchall()  # discard SELECT * results
+    col_list = ", ".join(EXPECTED_COLUMNS[table_name])
+    mysql_cur.execute(f"SELECT {col_list} FROM {table_name};")
     return mysql_cur.fetchall()
 
 def load_table(pg_conn, table_name, rows, columns):
