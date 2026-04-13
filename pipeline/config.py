@@ -23,3 +23,12 @@ def get_pg_conn():
         password=os.getenv("PG_PASSWORD", "pipeline"),
         dbname=os.getenv("PG_DATABASE", "basket_craft"),
     )
+
+def get_rds_conn():
+    return psycopg2.connect(
+        host=os.getenv("RDS_HOST"),
+        port=int(os.getenv("RDS_PORT") or 5432),
+        user=os.getenv("RDS_USER"),
+        password=os.getenv("RDS_PASSWORD"),
+        dbname=os.getenv("RDS_DATABASE"),
+    )
