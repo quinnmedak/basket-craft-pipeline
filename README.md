@@ -1,16 +1,12 @@
 # Basket Craft Pipeline
 
-An ELT pipeline that pulls sales data from the Basket Craft MySQL database, loads it into a local PostgreSQL instance, and transforms it into a monthly sales analytics table.
+An ELT pipeline that pulls sales data from the Basket Craft MySQL database, loads it into PostgreSQL, and transforms it into a monthly sales analytics table. Raw data is also mirrored to an AWS RDS PostgreSQL instance for broader analysis.
 
 ## What it does
 
-Extracts three tables from MySQL (`orders`, `order_items`, `products`), loads them raw into Postgres, then runs a SQL aggregation to produce a `monthly_sales_by_product` table with:
+**Local pipeline:** Extracts three tables from MySQL (`orders`, `order_items`, `products`), loads them raw into a local Postgres instance, then runs a SQL aggregation to produce a `monthly_sales_by_product` table with gross revenue, order count, and average order value grouped by product and month.
 
-- Gross revenue
-- Order count
-- Average order value
-
-...grouped by product and month.
+**RDS loader:** Extracts all 8 tables from MySQL and loads them as-is into the `public` schema of an AWS RDS PostgreSQL database — no transformations, full reload on each run.
 
 ## How it works
 
@@ -19,15 +15,25 @@ MySQL (basket_craft)
   └── orders, order_items, products
           │  extract.py
           ▼
-Postgres — raw schema
+Local Postgres — raw schema
   └── raw.orders, raw.order_items, raw.products
           │  monthly_summary.sql
           ▼
-Postgres — analytics schema
+Local Postgres — analytics schema
   └── analytics.monthly_sales_by_product
+
+
+MySQL (basket_craft)
+  └── all 8 tables
+          │  load_raw_to_rds.py
+          ▼
+AWS RDS Postgres — public schema
+  └── employees, order_item_refunds, order_items,
+      orders, products, users,
+      website_pageviews, website_sessions
 ```
 
-Each run does a full reload (TRUNCATE + INSERT), so it's safe to re-run.
+Each run does a full reload, so it's safe to re-run.
 
 ## Setup
 
@@ -58,10 +64,14 @@ docker exec -i basket-craft-pipeline-postgres-1 psql -U pipeline -d basket_craft
 ## Running the pipeline
 
 ```bash
+# Local pipeline (MySQL → local Postgres → analytics)
 .venv/bin/python run_pipeline.py
+
+# RDS loader (MySQL → AWS RDS, all tables, public schema)
+PYTHONUNBUFFERED=1 .venv/bin/python load_raw_to_rds.py
 ```
 
-Example output:
+Example output (`run_pipeline.py`):
 ```
 === Basket Craft ELT Pipeline ===
 
@@ -73,6 +83,15 @@ Example output:
 [2/2] Transforming raw → analytics schema...
 
 Done. 94 rows in analytics.monthly_sales_by_product.
+```
+
+Example output (`load_raw_to_rds.py`):
+```
+Found 8 table(s): employees, order_item_refunds, order_items, orders, products, users, website_pageviews, website_sessions
+  employees: 20 rows loaded into RDS public.employees
+  ...
+  website_sessions: 472871 rows loaded into RDS public.website_sessions
+Done.
 ```
 
 ## Running tests
@@ -94,8 +113,13 @@ Done. 94 rows in analytics.monthly_sales_by_product.
 | `MYSQL_USER` | MySQL username |
 | `MYSQL_PASSWORD` | MySQL password |
 | `MYSQL_DATABASE` | MySQL database name |
-| `PG_HOST` | Postgres host (default `localhost`) |
-| `PG_PORT` | Postgres port (default `5432`) |
-| `PG_USER` | Postgres user (default `pipeline`) |
-| `PG_PASSWORD` | Postgres password (default `pipeline`) |
-| `PG_DATABASE` | Postgres database (default `basket_craft`) |
+| `PG_HOST` | Local Postgres host (default `localhost`) |
+| `PG_PORT` | Local Postgres port (default `5432`) |
+| `PG_USER` | Local Postgres user (default `pipeline`) |
+| `PG_PASSWORD` | Local Postgres password (default `pipeline`) |
+| `PG_DATABASE` | Local Postgres database (default `basket_craft`) |
+| `RDS_HOST` | AWS RDS hostname |
+| `RDS_PORT` | RDS port (default 5432) |
+| `RDS_USER` | RDS username |
+| `RDS_PASSWORD` | RDS password |
+| `RDS_DATABASE` | RDS database name |

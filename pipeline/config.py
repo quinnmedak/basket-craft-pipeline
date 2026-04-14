@@ -31,4 +31,5 @@ def get_rds_conn():
         user=os.getenv("RDS_USER"),
         password=os.getenv("RDS_PASSWORD"),
         dbname=os.getenv("RDS_DATABASE"),
+        connect_timeout=15,
     )
