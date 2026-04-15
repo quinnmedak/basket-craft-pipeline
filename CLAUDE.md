@@ -29,6 +29,13 @@ Two separate pipelines share `pipeline/config.py` for connection helpers:
 - Drops and recreates each table in `public.*` on RDS, then loads all rows
 - Uses `psycopg2.extras.execute_values` with `page_size=1000` for efficient bulk inserts
 
+**Snowflake loader** (`load_rds_to_snowflake.py`): AWS RDS Postgres → Snowflake (`basket_craft.raw`)
+- Loads the same 8 tables from RDS `public.*` into Snowflake `basket_craft.raw`
+- Hardcoded table list: `orders`, `order_items`, `products`, `order_item_refunds`, `users`, `employees`, `website_pageviews`, `website_sessions`
+- Reads each table into a pandas DataFrame via psycopg2, then writes to Snowflake using `write_pandas` with `overwrite=True` (drop + recreate each run)
+- All identifiers lowercase and unquoted
+- Credentials read from `.env` via `SNOWFLAKE_*` vars (see Environment section)
+
 Full reload every run. Idempotent: TRUNCATE/DROP+CREATE + INSERT on each run.
 
 ## Setup (first time)
@@ -56,6 +63,9 @@ docker compose up -d
 # Load all MySQL tables to AWS RDS (public schema)
 PYTHONUNBUFFERED=1 .venv/bin/python load_raw_to_rds.py
 
+# Load all 8 raw tables from RDS into Snowflake basket_craft.raw (opens browser for auth)
+PYTHONUNBUFFERED=1 .venv/bin/python load_rds_to_snowflake.py
+
 # Run all tests (excludes smoke)
 .venv/bin/pytest tests/ -v -k "not smoke"
 
@@ -72,6 +82,7 @@ Credentials in `.env` (gitignored). Copy `.env.example` to `.env` and fill in va
 - MySQL vars: `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`
 - Local Postgres vars: `PG_HOST`, `PG_PORT`, `PG_USER`, `PG_PASSWORD`, `PG_DATABASE` (defaults match docker-compose)
 - RDS vars: `RDS_HOST`, `RDS_PORT`, `RDS_USER`, `RDS_PASSWORD`, `RDS_DATABASE`
+- Snowflake vars: `SNOWFLAKE_ACCOUNT`, `SNOWFLAKE_USER`, `SNOWFLAKE_PASSWORD`, `SNOWFLAKE_ROLE`, `SNOWFLAKE_WAREHOUSE`, `SNOWFLAKE_DATABASE`, `SNOWFLAKE_SCHEMA`
 
 ## Database Connection Details
 
@@ -90,6 +101,52 @@ Credentials in `.env` (gitignored). Copy `.env.example` to `.env` and fill in va
 - Schema: `public` — all 8 MySQL tables loaded as-is via `load_raw_to_rds.py`
 - Connect via psql: `psql -h basket-craft-db.cw5mgk6qsvia.us-east-1.rds.amazonaws.com -U student -d basket_craft`
 
+**Snowflake**
+- Account: `DMZWBPO-BYC66344` (set via `SNOWFLAKE_ACCOUNT` in `.env`)
+- Database: `basket_craft`
+- Schema: `raw` — all 8 RDS tables loaded via `load_rds_to_snowflake.py`
+- Auth: password-based via `SNOWFLAKE_*` env vars; opens browser window on first connect
+
 ## Tests
 
 Tests in `tests/test_pipeline.py` run against local Docker Postgres, not MySQL or RDS. `conftest.py` auto-runs `create_tables.sql` via the `create_tables` session fixture before any test. The `seeded_raw` fixture inserts minimal fixture rows and cleans up after the session. Always use `PYTHONUNBUFFERED=1` when running scripts that connect to RDS to avoid silent hangs from stdout buffering.
+
+## dbt Project
+
+The dbt project lives at `basket_craft/` in the repo root.
+
+**profiles.yml** is at `~/.dbt/profiles.yml` — outside the repo and never committed. It reads all Snowflake credentials via `env_var()`, so the `.env` vars must be exported before running any dbt command:
+
+```bash
+set -a && source .env && set +a
+```
+
+**Running dbt** (from inside `basket_craft/`):
+
+```bash
+# Build all models
+dbt run
+
+# Run data tests
+dbt test
+
+# Generate and serve docs
+dbt docs generate
+dbt docs serve  # opens at http://localhost:8080
+```
+
+**Models:**
+
+Staging (`models/staging/`) — views, select from `{{ source('raw', ...) }}`:
+- `stg_orders` — orders with renamed columns and customer_id
+- `stg_order_items` — order line items
+- `stg_products` — product catalog
+- `stg_customers` — customers (sourced from raw `users` table)
+
+Marts (`models/marts/`) — tables, select from `{{ ref(...) }}`:
+- `dim_date` — date spine from 2020–2030 with calendar attributes
+- `dim_customers` — one row per customer
+- `dim_products` — one row per product
+- `fct_order_items` — fact table at order-line grain; joins `stg_order_items` + `stg_orders`
+
+All models build into the `analytics` schema in Snowflake (`basket_craft.analytics`).

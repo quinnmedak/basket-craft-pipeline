@@ -66,6 +66,25 @@ def test_transform_output(pg_conn, seeded_raw):
     assert float(feb[4]) == pytest.approx(40.00)
     assert feb[5] is not None
 
+def test_smoke_rds_to_snowflake():
+    """Loads all 8 tables from RDS into Snowflake basket_craft.raw. Hits live connections — run manually."""
+    from load_rds_to_snowflake import TABLES, run
+    from pipeline.config import get_snowflake_conn
+
+    run()
+
+    sf_conn = get_snowflake_conn()
+    try:
+        cur = sf_conn.cursor()
+        for table in TABLES:
+            cur.execute(f"select count(*) from raw.{table}")
+            count = cur.fetchone()[0]
+            assert count > 0, f"raw.{table} is empty after load"
+        cur.close()
+    finally:
+        sf_conn.close()
+
+
 def test_smoke_full_pipeline(pg_conn):
     """Runs full pipeline against real MySQL and Postgres. Slow — run manually."""
     from pipeline.extract import run_extract

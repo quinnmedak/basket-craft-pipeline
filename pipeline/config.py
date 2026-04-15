@@ -1,6 +1,7 @@
 import os
 import pymysql
 import psycopg2
+import snowflake.connector
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -32,4 +33,15 @@ def get_rds_conn():
         password=os.getenv("RDS_PASSWORD"),
         dbname=os.getenv("RDS_DATABASE"),
         connect_timeout=15,
+    )
+
+def get_snowflake_conn():
+    return snowflake.connector.connect(
+        account=os.getenv("SNOWFLAKE_ACCOUNT"),
+        user=os.getenv("SNOWFLAKE_USER"),
+        password=os.getenv("SNOWFLAKE_PASSWORD"),
+        role=os.getenv("SNOWFLAKE_ROLE"),
+        warehouse=os.getenv("SNOWFLAKE_WAREHOUSE"),
+        database=os.getenv("SNOWFLAKE_DATABASE"),
+        schema=os.getenv("SNOWFLAKE_SCHEMA"),
     )
