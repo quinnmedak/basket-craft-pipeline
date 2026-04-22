@@ -113,7 +113,7 @@ Tests in `tests/test_pipeline.py` run against local Docker Postgres, not MySQL o
 
 ## dbt Project
 
-The dbt project lives at `basket_craft/` in the repo root.
+The dbt project lives at `dbt/` in the repo root.
 
 **profiles.yml** is at `~/.dbt/profiles.yml` — outside the repo and never committed. It reads all Snowflake credentials via `env_var()`, so the `.env` vars must be exported before running any dbt command:
 
@@ -121,7 +121,7 @@ The dbt project lives at `basket_craft/` in the repo root.
 set -a && source .env && set +a
 ```
 
-**Running dbt** (from inside `basket_craft/`):
+**Running dbt** (from inside `dbt/`):
 
 ```bash
 # Build all models
