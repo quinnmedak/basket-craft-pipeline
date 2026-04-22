@@ -1,11 +1,46 @@
 version: 2
 
 models:
+  - name: dim_customers
+    description: "One row per customer."
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_products
+    description: "One row per product."
+    columns:
+      - name: product_id
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_date
+    description: "Date spine from 2020-01-01 to 2029-12-31 with calendar attributes."
+    columns:
+      - name: date_day
+        tests:
+          - unique
+          - not_null
+
   - name: fct_order_items
     description: "Fact table at order-line grain. One row per product sold in one order."
     columns:
       - name: order_item_id
-        description: "Surrogate key. Unique per line item."
         tests:
           - unique
           - not_null
+      - name: customer_id
+        tests:
+          - not_null
+      - name: order_date
+        tests:
+          - not_null
+      - name: is_primary_item
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [true, false]

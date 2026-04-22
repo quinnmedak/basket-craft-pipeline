@@ -4,13 +4,114 @@ sources:
   - name: raw
     database: basket_craft
     schema: raw
-    description: "Raw Basket Craft tables loaded from AWS RDS in Session 03."
+    description: "Raw Basket Craft tables loaded from AWS RDS via load_rds_to_snowflake.py. Full reload on every run."
     tables:
       - name: orders
-        description: "One row per order."
+        description: "One row per order placed. The primary transaction record — captures what was ordered, by whom, and for how much."
+        columns:
+          - name: order_id
+            tests:
+              - not_null
+              - unique
+          - name: user_id
+            tests:
+              - not_null
+          - name: website_session_id
+            tests:
+              - not_null
+          - name: primary_product_id
+            tests:
+              - not_null
+          - name: items_purchased
+            tests:
+              - not_null
+          - name: created_at
+            tests:
+              - not_null
+          - name: price_usd
+            tests:
+              - not_null
+          - name: cogs_usd
+            tests:
+              - not_null
+
       - name: order_items
-        description: "One row per line item within an order."
+        description: "One row per line item within an order. An order can have multiple items (e.g. a primary product plus an add-on)."
+        columns:
+          - name: order_item_id
+            tests:
+              - not_null
+              - unique
+          - name: order_id
+            tests:
+              - not_null
+          - name: product_id
+            tests:
+              - not_null
+          - name: is_primary_item
+            tests:
+              - not_null
+          - name: created_at
+            tests:
+              - not_null
+          - name: price_usd
+            tests:
+              - not_null
+          - name: cogs_usd
+            tests:
+              - not_null
+
       - name: products
-        description: "Product catalog."
+        description: "Product catalog. Basket Craft sells 4 products: Original, Valentine's, Birthday, and Holiday Gift Basket. Each product is also its own category."
+        columns:
+          - name: product_id
+            tests:
+              - not_null
+              - unique
+          - name: product_name
+            tests:
+              - not_null
+          - name: description
+          - name: created_at
+            tests:
+              - not_null
+
       - name: users
-        description: "Customer master."
+        description: "Customer master table. One row per registered customer with billing and shipping address details."
+        columns:
+          - name: user_id
+            tests:
+              - not_null
+              - unique
+          - name: first_name
+            tests:
+              - not_null
+          - name: last_name
+            tests:
+              - not_null
+          - name: email
+            tests:
+              - not_null
+          - name: billing_street_address
+            tests:
+              - not_null
+          - name: billing_city
+            tests:
+              - not_null
+          - name: billing_state
+            tests:
+              - not_null
+          - name: billing_postal_code
+            tests:
+              - not_null
+          - name: billing_country
+            tests:
+              - not_null
+          - name: shipping_street_ddress
+          - name: shipping_city
+          - name: shipping_state
+          - name: shipping_postal_code
+          - name: shipping_country
+          - name: created_at
+            tests:
+              - not_null
