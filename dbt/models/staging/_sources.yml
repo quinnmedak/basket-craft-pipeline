@@ -76,6 +76,54 @@ sources:
             tests:
               - not_null
 
+      - name: website_pageviews
+        description: "One row per page viewed. Tracks which URLs were visited and during which session."
+        columns:
+          - name: website_pageview_id
+            tests:
+              - not_null
+              - unique
+          - name: website_session_id
+            tests:
+              - not_null
+          - name: pageview_url
+            tests:
+              - not_null
+          - name: created_at
+            tests:
+              - not_null
+
+      - name: website_sessions
+        description: "One row per website session. Captures traffic source, device, and whether the visitor is a repeat customer."
+        columns:
+          - name: website_session_id
+            tests:
+              - not_null
+              - unique
+          - name: user_id
+            tests:
+              - not_null
+          - name: created_at
+            tests:
+              - not_null
+
+      - name: order_item_refunds
+        description: "One row per refund issued on an order line item."
+        columns:
+          - name: order_item_refund_id
+            tests:
+              - not_null
+              - unique
+          - name: order_item_id
+            tests:
+              - not_null
+          - name: refund_amount_usd
+            tests:
+              - not_null
+          - name: created_at
+            tests:
+              - not_null
+
       - name: users
         description: "Customer master table. One row per registered customer with billing and shipping address details."
         columns:
